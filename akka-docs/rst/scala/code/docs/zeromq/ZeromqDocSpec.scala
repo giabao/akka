@@ -6,8 +6,8 @@ package docs.zeromq
 import language.postfixOps
 
 import scala.concurrent.duration._
-import scala.collection.immutable
 import akka.actor.{ Actor, Props }
+import akka.util.ByteString
 import akka.testkit._
 import akka.zeromq.{ ZeroMQVersion, ZeroMQExtension, SocketType, Bind }
 import java.text.SimpleDateFormat
@@ -52,12 +52,12 @@ object ZeromqDocSpec {
         val heapPayload = ser.serialize(Heap(timestamp, currentHeap.getUsed,
           currentHeap.getMax)).get
         // the first frame is the topic, second is the message
-        pubSocket ! ZMQMessage(immutable.Seq(Frame("health.heap"), Frame(heapPayload)))
+        pubSocket ! ZMQMessage(ByteString("health.heap"), ByteString(heapPayload))
 
         // use akka SerializationExtension to convert to bytes
         val loadPayload = ser.serialize(Load(timestamp, os.getSystemLoadAverage)).get
         // the first frame is the topic, second is the message
-        pubSocket ! ZMQMessage(immutable.Seq(Frame("health.load"), Frame(loadPayload)))
+        pubSocket ! ZMQMessage(ByteString("health.load"), ByteString(loadPayload))
     }
   }
   //#health
@@ -72,14 +72,14 @@ object ZeromqDocSpec {
 
     def receive = {
       // the first frame is the topic, second is the message
-      case m: ZMQMessage if m.firstFrameAsString == "health.heap" ⇒
-        val Heap(timestamp, used, max) = ser.deserialize(m.payload(1),
+      case m: ZMQMessage if m.frames(0).utf8String == "health.heap" ⇒
+        val Heap(timestamp, used, max) = ser.deserialize(m.frames(1).toArray(null),
           classOf[Heap]).get
         log.info("Used heap {} bytes, at {}", used,
           timestampFormat.format(new Date(timestamp)))
 
-      case m: ZMQMessage if m.firstFrameAsString == "health.load" ⇒
-        val Load(timestamp, loadAverage) = ser.deserialize(m.payload(1),
+      case m: ZMQMessage if m.frames(0).utf8String == "health.load" ⇒
+        val Load(timestamp, loadAverage) = ser.deserialize(m.frames(1).toArray(null),
           classOf[Load]).get
         log.info("Load average {}, at {}", loadAverage,
           timestampFormat.format(new Date(timestamp)))
@@ -97,9 +97,8 @@ object ZeromqDocSpec {
 
     def receive = {
       // the first frame is the topic, second is the message
-      case m: ZMQMessage if m.firstFrameAsString == "health.heap" ⇒
-        val Heap(timestamp, used, max) = ser.deserialize(m.payload(1),
-          classOf[Heap]).get
+      case m: ZMQMessage if m.frames(0).utf8String == "health.heap" ⇒
+        val Heap(timestamp, used, max) = ser.deserialize(m.frames(1).toArray(null), classOf[Heap]).get
         if ((used.toDouble / max) > 0.9) count += 1
         else count = 0
         if (count > 10) log.warning("Need more memory, using {} %",
@@ -146,7 +145,7 @@ class ZeromqDocSpec extends AkkaSpec("akka.loglevel=INFO") {
 
     val payload = Array.empty[Byte]
     //#pub-topic
-    pubSocket ! ZMQMessage(Frame("foo.bar"), Frame(payload))
+    pubSocket ! ZMQMessage(ByteString("foo.bar"), ByteString(payload))
     //#pub-topic
 
     system.stop(subSocket)

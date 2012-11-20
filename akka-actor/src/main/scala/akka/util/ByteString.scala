@@ -45,12 +45,24 @@ object ByteString {
    */
   def apply(string: String, charset: String): ByteString = CompactByteString(string, charset)
 
+  def fromArray(array: Array[Byte]): ByteString = apply(array)
+
   /**
    * Creates a new ByteString by copying length bytes starting at offset from
    * an Array.
    */
   def fromArray(array: Array[Byte], offset: Int, length: Int): ByteString =
     CompactByteString.fromArray(array, offset, length)
+
+  /**
+   * Creates a new ByteString which will contain the UTF-8 representation of the given String
+   */
+  def fromString(string: String): ByteString = apply(string)
+
+  /**
+   * Creates a new ByteString which will contain the representation of the given String in the given charset
+   */
+  def fromString(string: String, charset: String): ByteString = apply(string, charset)
 
   val empty: ByteString = CompactByteString(Array.empty[Byte])
 
@@ -282,6 +294,11 @@ sealed abstract class ByteString extends IndexedSeq[Byte] with IndexedSeqOptimiz
   override def indexWhere(p: Byte ⇒ Boolean): Int = iterator.indexWhere(p)
   override def indexOf[B >: Byte](elem: B): Int = iterator.indexOf(elem)
 
+  /**
+   * JAVA API protected[ByteString] == public to Java but hidden to Scala * fnizz *
+   * @return
+   */
+  protected[ByteString] def toArray: Array[Byte] = toArray[Byte]
   override def toArray[B >: Byte](implicit arg0: ClassTag[B]): Array[B] = iterator.toArray
   override def copyToArray[B >: Byte](xs: Array[B], start: Int, len: Int): Unit =
     iterator.copyToArray(xs, start, len)
