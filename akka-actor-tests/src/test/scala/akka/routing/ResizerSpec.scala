@@ -202,12 +202,11 @@ class ResizerSpec extends AkkaSpec(ResizerSpec.config) with DefaultTimeout with 
       Thread.sleep((300 millis).dilated.toMillis)
 
       // let it cool down
-      for (m ← 0 to 5) {
-        router ! 1
-        Thread.sleep((500 millis).dilated.toMillis)
-      }
+      awaitCond({
+        router ! 1 // trigger resize
+        routeeSize(router) < z
+      }, interval = 500.millis.dilated)
 
-      awaitCond(Try(routeeSize(router) < (z)).getOrElse(false))
     }
 
   }
